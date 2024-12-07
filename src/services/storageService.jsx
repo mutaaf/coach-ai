@@ -1,166 +1,148 @@
 // Local storage keys
 const STORAGE_KEYS = {
-  RECORDINGS: 'basketball_scout_recordings',
-  PLAYERS: 'basketball_scout_players'
+  PLAYERS: 'basketball_scout_hub_players',
+  FEEDBACK: 'basketball_scout_hub_feedback',
 };
 
-// Helper to get player stats from feedback history
-const calculatePlayerStats = (playerFeedback) => {
-  const stats = {
-    totalSessions: playerFeedback.length,
-    skillFrequency: {},
-    improvementAreas: {},
-    recentHighlights: [],
-    sessionTypes: {},
-    lastFeedback: null
+// Helper function to get data from localStorage
+const getFromStorage = (key, defaultValue = {}) => {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+  } catch (error) {
+    console.error(`Error reading from localStorage: ${error}`);
+    return defaultValue;
+  }
+};
+
+// Helper function to save data to localStorage
+const saveToStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error(`Error saving to localStorage: ${error}`);
+  }
+};
+
+// Initialize storage if empty
+const initializeStorage = () => {
+  const players = getFromStorage(STORAGE_KEYS.PLAYERS);
+  if (Object.keys(players).length === 0) {
+    saveToStorage(STORAGE_KEYS.PLAYERS, {});
+  }
+};
+
+// Call initialization
+initializeStorage();
+
+export const getAllPlayers = () => {
+  return getFromStorage(STORAGE_KEYS.PLAYERS);
+};
+
+export const getPlayer = (playerId) => {
+  const players = getAllPlayers();
+  return players[playerId];
+};
+
+export const updatePlayer = (updatedPlayer) => {
+  const players = getAllPlayers();
+  
+  // Ensure player has an ID
+  if (!updatedPlayer.id) {
+    updatedPlayer.id = updatedPlayer.name.toLowerCase().replace(/\s+/g, '-');
+  }
+  
+  players[updatedPlayer.id] = {
+    ...players[updatedPlayer.id],
+    ...updatedPlayer,
+    lastUpdated: new Date().toISOString(),
+  };
+  
+  saveToStorage(STORAGE_KEYS.PLAYERS, players);
+  return updatedPlayer;
+};
+
+export const addFeedback = (playerId, feedback) => {
+  // Get current players
+  const players = getAllPlayers();
+  
+  // Create player ID if not provided
+  const playerIdentifier = playerId || feedback.playerName.toLowerCase().replace(/\s+/g, '-');
+  
+  // Get or initialize player
+  const player = players[playerIdentifier] || {
+    id: playerIdentifier,
+    name: feedback.playerName,
+    feedback: [],
+    stats: {
+      totalSessions: 0,
+      lastFeedback: null,
+      skillFrequency: {},
+      sessionTypes: {},
+      improvementAreas: {},
+      recentHighlights: [],
+    },
   };
 
-  playerFeedback.forEach(feedback => {
-    // Track session types
-    stats.sessionTypes[feedback.analysis.session_type] = 
-      (stats.sessionTypes[feedback.analysis.session_type] || 0) + 1;
+  // Update player stats
+  const stats = player.stats;
+  stats.totalSessions++;
+  stats.lastFeedback = new Date().toISOString();
 
-    // Find player in the analysis
-    const playerAnalysis = feedback.analysis.players.find(p => 
-      p.name.toLowerCase() === playerFeedback[0].playerName.toLowerCase()
-    );
-
-    if (playerAnalysis) {
-      // Track skills
-      playerAnalysis.skills.forEach(skill => {
-        stats.skillFrequency[skill] = (stats.skillFrequency[skill] || 0) + 1;
-      });
-
-      // Track improvements
-      playerAnalysis.improvements.forEach(improvement => {
-        stats.improvementAreas[improvement] = (stats.improvementAreas[improvement] || 0) + 1;
-      });
-
-      // Add highlights with timestamps
-      playerAnalysis.highlights.forEach(highlight => {
-        stats.recentHighlights.push({
-          highlight,
-          timestamp: feedback.timestamp
-        });
-      });
-    }
+  // Update skill frequency
+  feedback.analysis.skills_demonstrated?.forEach(skill => {
+    stats.skillFrequency[skill] = (stats.skillFrequency[skill] || 0) + 1;
   });
 
-  // Sort highlights by timestamp and take most recent
-  stats.recentHighlights.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  stats.recentHighlights = stats.recentHighlights.slice(0, 5);
+  // Update session types
+  const sessionType = feedback.analysis.session_type;
+  stats.sessionTypes[sessionType] = (stats.sessionTypes[sessionType] || 0) + 1;
 
-  // Set last feedback date
-  stats.lastFeedback = playerFeedback[playerFeedback.length - 1].timestamp;
+  // Update improvement areas
+  feedback.analysis.areas_for_improvement?.forEach(area => {
+    stats.improvementAreas[area] = (stats.improvementAreas[area] || 0) + 1;
+  });
 
-  return stats;
-};
-
-// Save recording with enhanced player tracking
-export const saveRecording = (recordingData) => {
-  try {
-    // Get existing recordings
-    const existingRecordings = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECORDINGS) || '[]');
-    
-    // Add new recording
-    existingRecordings.push(recordingData);
-    localStorage.setItem(STORAGE_KEYS.RECORDINGS, JSON.stringify(existingRecordings));
-
-    // Update player records
-    const players = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYERS) || '{}');
-    
-    // Extract and update player data
-    recordingData.analysis.players.forEach(player => {
-      const playerName = player.name.toLowerCase();
-      if (!players[playerName]) {
-        players[playerName] = {
-          name: player.name,
-          feedback: []
-        };
-      }
-
-      // Add feedback reference
-      players[playerName].feedback.push({
-        recordingId: recordingData.id,
-        timestamp: recordingData.timestamp,
-        playerName: player.name,
-        analysis: recordingData.analysis
-      });
-
-      // Calculate updated stats
-      players[playerName].stats = calculatePlayerStats(players[playerName].feedback);
+  // Update recent highlights
+  if (feedback.analysis.key_takeaways?.length > 0) {
+    stats.recentHighlights.unshift({
+      highlight: feedback.analysis.key_takeaways[0],
+      timestamp: new Date().toISOString(),
     });
+    stats.recentHighlights = stats.recentHighlights.slice(0, 5); // Keep only last 5 highlights
+  }
 
-    localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+  // Add feedback to player's history
+  player.feedback = player.feedback || [];
+  player.feedback.push({
+    ...feedback,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Save updated player data
+  players[playerIdentifier] = player;
+  saveToStorage(STORAGE_KEYS.PLAYERS, players);
+
+  return player;
+};
+
+export const getPlayerFeedbackHistory = (playerId) => {
+  const player = getPlayer(playerId);
+  return player ? player.feedback : [];
+};
+
+export const deletePlayer = (playerId) => {
+  const players = getAllPlayers();
+  if (players[playerId]) {
+    delete players[playerId];
+    saveToStorage(STORAGE_KEYS.PLAYERS, players);
     return true;
-  } catch (error) {
-    console.error('Error saving recording:', error);
-    return false;
   }
+  return false;
 };
 
-// Get all recordings
-export const getAllRecordings = () => {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.RECORDINGS) || '[]');
-  } catch (error) {
-    console.error('Error getting recordings:', error);
-    return [];
-  }
-};
-
-// Get all players with their feedback history
-export const getAllPlayers = () => {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYERS) || '{}');
-  } catch (error) {
-    console.error('Error getting players:', error);
-    return {};
-  }
-};
-
-// Get specific player data
-export const getPlayerData = (playerName) => {
-  try {
-    const players = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYERS) || '{}');
-    return players[playerName.toLowerCase()] || null;
-  } catch (error) {
-    console.error('Error getting player data:', error);
-    return null;
-  }
-};
-
-// Get feedback history for a specific player
-export const getPlayerFeedbackHistory = (playerName) => {
-  const playerData = getPlayerData(playerName);
-  return playerData ? playerData.feedback : [];
-};
-
-// Delete a recording and update player records
-export const deleteRecording = (recordingId) => {
-  try {
-    // Remove from recordings
-    const recordings = getAllRecordings();
-    const updatedRecordings = recordings.filter(r => r.id !== recordingId);
-    localStorage.setItem(STORAGE_KEYS.RECORDINGS, JSON.stringify(updatedRecordings));
-
-    // Update player records
-    const players = getAllPlayers();
-    Object.keys(players).forEach(playerName => {
-      players[playerName].feedback = players[playerName].feedback.filter(
-        f => f.recordingId !== recordingId
-      );
-      if (players[playerName].feedback.length > 0) {
-        players[playerName].stats = calculatePlayerStats(players[playerName].feedback);
-      } else {
-        delete players[playerName]; // Remove player if no more feedback
-      }
-    });
-
-    localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
-    return true;
-  } catch (error) {
-    console.error('Error deleting recording:', error);
-    return false;
-  }
+export const clearAllData = () => {
+  localStorage.removeItem(STORAGE_KEYS.PLAYERS);
+  localStorage.removeItem(STORAGE_KEYS.FEEDBACK);
+  initializeStorage();
 }; 

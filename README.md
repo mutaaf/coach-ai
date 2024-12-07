@@ -37,23 +37,38 @@ VITE_OPENAI_API_KEY=your_openai_api_key_here
 
 ## Development
 
-### Running in Test Mode (No API Key Required)
+The application can run in two modes: test mode and production mode.
 
-1. Open `src/services/aiService.jsx`
-2. Ensure `TEST_MODE = true` at the top of the file
-3. Start the development server:
+### Test Mode (No API Key Required)
+
+Test mode uses mock responses and doesn't require an OpenAI API key. This is perfect for development and UI testing.
+
 ```bash
+# Run in test mode (default)
 npm run dev
+
+# Or explicitly specify test mode
+npm run dev:test
 ```
 
-### Running in Production Mode
+### Production Mode (Requires API Key)
 
-1. Set up your OpenAI API key in `.env`
-2. Open `src/services/aiService.jsx`
-3. Set `TEST_MODE = false`
-4. Start the development server:
+Production mode uses the actual OpenAI API for voice transcription and analysis.
+
+1. Ensure your OpenAI API key is set in `.env`
+2. Run the development server in production mode:
 ```bash
-npm run dev
+npm run dev:prod
+```
+
+### Building for Production
+
+```bash
+# Build with test mode
+npm run build:test
+
+# Build for production (requires API key)
+npm run build:prod
 ```
 
 The application will be available at `http://localhost:5173`

@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   Tabs,
   Tab,
   Grid,
@@ -23,6 +24,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  Button,
+  TextField,
   Divider,
 } from '@mui/material';
 import {
@@ -31,8 +34,83 @@ import {
   TrendingUp,
   Close,
   OpenInNew,
+  Edit,
 } from '@mui/icons-material';
-import { getAllPlayers, getPlayerFeedbackHistory } from '../services/storageService';
+import { getAllPlayers, getPlayerFeedbackHistory, updatePlayer } from '../services/storageService';
+
+const PlayerEditDialog = ({ player, open, onClose, onSave }) => {
+  const [editedPlayer, setEditedPlayer] = useState(player);
+
+  useEffect(() => {
+    setEditedPlayer(player);
+  }, [player]);
+
+  if (!player) return null;
+
+  const handleChange = (field) => (event) => {
+    setEditedPlayer({
+      ...editedPlayer,
+      [field]: event.target.value,
+    });
+  };
+
+  const handleSave = () => {
+    onSave(editedPlayer);
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h5">Edit Player</Typography>
+          <IconButton onClick={onClose}>
+            <Close />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2 }}>
+          <TextField
+            fullWidth
+            label="Player Name"
+            value={editedPlayer.name}
+            onChange={handleChange('name')}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Position"
+            value={editedPlayer.position || ''}
+            onChange={handleChange('position')}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Jersey Number"
+            value={editedPlayer.number || ''}
+            onChange={handleChange('number')}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Notes"
+            value={editedPlayer.notes || ''}
+            onChange={handleChange('notes')}
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSave} variant="contained" color="primary">
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const PlayerDetailDialog = ({ player, open, onClose }) => {
   const [currentTab, setCurrentTab] = useState(0);
@@ -201,6 +279,7 @@ const PlayerDetailDialog = ({ player, open, onClose }) => {
 const Players = () => {
   const [players, setPlayers] = useState({});
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [editingPlayer, setEditingPlayer] = useState(null);
 
   useEffect(() => {
     loadPlayers();
@@ -215,6 +294,20 @@ const Players = () => {
     setSelectedPlayer(player);
   };
 
+  const handleEditClick = (player, event) => {
+    event.stopPropagation();
+    setEditingPlayer(player);
+  };
+
+  const handleSavePlayer = (updatedPlayer) => {
+    updatePlayer(updatedPlayer);
+    loadPlayers(); // Reload the players list
+    // If this player was selected in the detail view, update that too
+    if (selectedPlayer && selectedPlayer.id === updatedPlayer.id) {
+      setSelectedPlayer(updatedPlayer);
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
@@ -226,6 +319,7 @@ const Players = () => {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
+              <TableCell>Position</TableCell>
               <TableCell>Total Sessions</TableCell>
               <TableCell>Last Feedback</TableCell>
               <TableCell>Top Skills</TableCell>
@@ -236,9 +330,11 @@ const Players = () => {
             {Object.values(players).map((player) => (
               <TableRow
                 key={player.name}
-                sx={{ '&:hover': { backgroundColor: 'action.hover' } }}
+                sx={{ '&:hover': { backgroundColor: 'action.hover', cursor: 'pointer' } }}
+                onClick={() => handlePlayerClick(player)}
               >
                 <TableCell>{player.name}</TableCell>
+                <TableCell>{player.position || '-'}</TableCell>
                 <TableCell>{player.stats.totalSessions}</TableCell>
                 <TableCell>
                   {new Date(player.stats.lastFeedback).toLocaleDateString()}
@@ -259,12 +355,25 @@ const Players = () => {
                   </Box>
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handlePlayerClick(player)}
-                  >
-                    <OpenInNew />
-                  </IconButton>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton
+                      color="primary"
+                      onClick={(e) => handleEditClick(player, e)}
+                      size="small"
+                    >
+                      <Edit />
+                    </IconButton>
+                    <IconButton
+                      color="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayerClick(player);
+                      }}
+                      size="small"
+                    >
+                      <OpenInNew />
+                    </IconButton>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
@@ -276,6 +385,13 @@ const Players = () => {
         player={selectedPlayer}
         open={Boolean(selectedPlayer)}
         onClose={() => setSelectedPlayer(null)}
+      />
+
+      <PlayerEditDialog
+        player={editingPlayer}
+        open={Boolean(editingPlayer)}
+        onClose={() => setEditingPlayer(null)}
+        onSave={handleSavePlayer}
       />
     </Box>
   );

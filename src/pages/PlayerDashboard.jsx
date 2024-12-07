@@ -2,31 +2,30 @@ import { useState, useEffect } from 'react';
 import {
   Container,
   Grid,
-  Paper,
-  Typography,
-  Box,
   Card,
   CardContent,
+  Typography,
+  Box,
+  Avatar,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
   IconButton,
-  LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Menu,
+  MenuItem,
+  Button,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import { getAllPlayers, deleteRecording } from '../services/storageService';
+import { useNavigate } from 'react-router-dom';
+import {
+  MoreVert as MoreVertIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  Add as AddIcon,
+} from '@mui/icons-material';
+import { getAllPlayers, deletePlayer } from '../services/storageService';
 
 const PlayerDashboard = () => {
-  const [players, setPlayers] = useState({});
+  const navigate = useNavigate();
+  const [players, setPlayers] = useState([]);
+  const [menuAnchor, setMenuAnchor] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   useEffect(() => {
@@ -35,190 +34,162 @@ const PlayerDashboard = () => {
 
   const loadPlayers = () => {
     const playerData = getAllPlayers();
-    setPlayers(playerData);
+    setPlayers(Object.values(playerData));
   };
 
-  const handleDeleteRecording = (recordingId) => {
-    if (window.confirm('Are you sure you want to delete this recording?')) {
-      const success = deleteRecording(recordingId);
-      if (success) {
-        loadPlayers();
-      }
+  const handleMenuClick = (event, player) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setSelectedPlayer(player);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+    setSelectedPlayer(null);
+  };
+
+  const handleDeletePlayer = () => {
+    if (selectedPlayer) {
+      deletePlayer(selectedPlayer.id);
+      loadPlayers();
     }
+    handleMenuClose();
   };
 
-  const renderPlayerCard = (playerName, playerData) => {
-    const stats = playerData.stats;
-    const isSelected = selectedPlayer === playerName;
+  const handleEditPlayer = () => {
+    if (selectedPlayer) {
+      navigate(`/players?edit=${selectedPlayer.id}`);
+    }
+    handleMenuClose();
+  };
 
-    return (
-      <Card 
-        key={playerName}
-        sx={{ 
-          mb: 2,
-          cursor: 'pointer',
-          transition: 'all 0.3s ease',
-          '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 }
-        }}
-        onClick={() => setSelectedPlayer(isSelected ? null : playerName)}
-      >
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">{playerData.name}</Typography>
-            <Chip 
-              icon={<TimelineIcon />}
-              label={`${stats.totalSessions} Sessions`}
-              color="primary"
-              variant="outlined"
-              size="small"
-            />
-          </Box>
+  const getInitials = (name) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Most Frequent Skills
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                {Object.entries(stats.skillFrequency)
-                  .sort(([,a], [,b]) => b - a)
-                  .slice(0, 3)
-                  .map(([skill, count]) => (
-                    <Chip
-                      key={skill}
-                      label={`${skill} (${count})`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" color="text.secondary">
-                Recent Session Types
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                {Object.entries(stats.sessionTypes)
-                  .map(([type, count]) => (
-                    <Chip
-                      key={type}
-                      label={`${type} (${count})`}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
-                    />
-                  ))}
-              </Box>
-            </Grid>
-          </Grid>
-
-          {isSelected && (
-            <Box sx={{ mt: 3 }}>
-              <Divider sx={{ my: 2 }} />
-              
-              <Typography variant="subtitle1" gutterBottom>
-                Recent Highlights
-              </Typography>
-              <List dense>
-                {stats.recentHighlights.map((item, index) => (
-                  <ListItem key={index}>
-                    <ListItemText
-                      primary={item.highlight}
-                      secondary={new Date(item.timestamp).toLocaleDateString()}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-
-              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-                Areas for Improvement
-              </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Area</TableCell>
-                      <TableCell align="right">Frequency</TableCell>
-                      <TableCell>Progress</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {Object.entries(stats.improvementAreas)
-                      .sort(([,a], [,b]) => b - a)
-                      .map(([area, count]) => (
-                        <TableRow key={area}>
-                          <TableCell>{area}</TableCell>
-                          <TableCell align="right">{count}</TableCell>
-                          <TableCell>
-                            <LinearProgress
-                              variant="determinate"
-                              value={Math.min((count / stats.totalSessions) * 100, 100)}
-                              sx={{ height: 8, borderRadius: 4 }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
-                Feedback History
-              </Typography>
-              <List dense>
-                {playerData.feedback
-                  .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                  .map((feedback, index) => (
-                    <ListItem
-                      key={index}
-                      secondaryAction={
-                        <IconButton
-                          edge="end"
-                          aria-label="delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteRecording(feedback.recordingId);
-                          }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      }
-                    >
-                      <ListItemText
-                        primary={`${feedback.analysis.session_type} Session`}
-                        secondary={new Date(feedback.timestamp).toLocaleString()}
-                      />
-                    </ListItem>
-                  ))}
-              </List>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
-    );
+  const getAvatarColor = (name) => {
+    const colors = [
+      '#1976d2', // blue
+      '#388e3c', // green
+      '#d32f2f', // red
+      '#f57c00', // orange
+      '#7b1fa2', // purple
+      '#0288d1', // light blue
+      '#388e3c', // green
+      '#fbc02d', // yellow
+    ];
+    
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[index % colors.length];
   };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Player Progress Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          Player Dashboard
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/record')}
+        >
+          Record Feedback
+        </Button>
+      </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12}>
-          {Object.entries(players).length > 0 ? (
-            Object.entries(players).map(([playerName, playerData]) => 
-              renderPlayerCard(playerName, playerData)
-            )
-          ) : (
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography color="text.secondary">
-                No player data available yet. Start recording feedback to see player progress.
-              </Typography>
-            </Paper>
-          )}
-        </Grid>
+        {players.map((player) => (
+          <Grid item xs={12} sm={6} md={4} key={player.id}>
+            <Card 
+              sx={{ 
+                cursor: 'pointer',
+                '&:hover': { boxShadow: 6 }
+              }}
+              onClick={() => navigate(`/players?view=${player.id}`)}
+            >
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Avatar 
+                    sx={{ 
+                      width: 56, 
+                      height: 56, 
+                      mr: 2,
+                      bgcolor: getAvatarColor(player.name)
+                    }}
+                  >
+                    {getInitials(player.name)}
+                  </Avatar>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6">{player.name}</Typography>
+                    <Typography color="text.secondary">
+                      {player.position || 'Position not set'}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    onClick={(e) => handleMenuClick(e, player)}
+                    size="small"
+                  >
+                    <MoreVertIcon />
+                  </IconButton>
+                </Box>
+
+                <Typography variant="subtitle2" gutterBottom>
+                  Recent Activity
+                </Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {player.stats.totalSessions} sessions recorded
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Last feedback: {player.stats.lastFeedback ? 
+                      new Date(player.stats.lastFeedback).toLocaleDateString() :
+                      'No feedback yet'
+                    }
+                  </Typography>
+                </Box>
+
+                <Typography variant="subtitle2" gutterBottom>
+                  Top Skills
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {Object.entries(player.stats.skillFrequency || {})
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 3)
+                    .map(([skill]) => (
+                      <Chip
+                        key={skill}
+                        label={skill}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
+
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEditPlayer}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          Edit Player
+        </MenuItem>
+        <MenuItem onClick={handleDeletePlayer} sx={{ color: 'error.main' }}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Delete Player
+        </MenuItem>
+      </Menu>
     </Container>
   );
 };

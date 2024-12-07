@@ -1,164 +1,261 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
-  Container,
   Box,
   Button,
   Typography,
   Paper,
   CircularProgress,
-  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Autocomplete,
   Alert,
-  AlertTitle,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   List,
   ListItem,
   ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  Chip,
   Divider,
 } from '@mui/material';
-import MicIcon from '@mui/icons-material/Mic';
-import StopIcon from '@mui/icons-material/Stop';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { transcribeAudio, analyzeSessionTranscript } from '../services/aiService.jsx';
-import { saveRecording } from '../services/storageService.jsx';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  Mic,
+  Stop,
+  Save,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+} from '@mui/icons-material';
+import { analyzeFeedback } from '../services/aiService';
+import { getAllPlayers, addFeedback } from '../services/storageService';
 
 const RecordFeedback = () => {
   const [isRecording, setIsRecording] = useState(false);
-  const [recordings, setRecordings] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [processingStep, setProcessingStep] = useState('');
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
+  const [feedback, setFeedback] = useState(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [existingPlayers, setExistingPlayers] = useState([]);
+  const [detectedPlayers, setDetectedPlayers] = useState([]);
+  const mediaRecorder = useRef(null);
+  const audioChunks = useRef([]);
+  const [editingPlayer, setEditingPlayer] = useState(null);
+  const [editedSkill, setEditedSkill] = useState('');
+  const [editedArea, setEditedArea] = useState('');
+  const [editedObservation, setEditedObservation] = useState('');
+
+  // Load existing players for name suggestions
+  useEffect(() => {
+    const players = getAllPlayers();
+    setExistingPlayers(Object.values(players).map(p => ({
+      id: p.id,
+      name: p.name,
+      position: p.position
+    })));
+  }, []);
 
   const startRecording = async () => {
     try {
-      setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+      mediaRecorder.current = new MediaRecorder(stream);
+      audioChunks.current = [];
+
+      mediaRecorder.current.ondataavailable = (event) => {
+        audioChunks.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = async () => {
-        try {
-          setIsProcessing(true);
-          setError(null);
-          
-          // Create audio blob from chunks
-          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
-          const audioUrl = URL.createObjectURL(audioBlob);
-
-          // Transcribe audio
-          setProcessingStep('Transcribing audio...');
-          const transcript = await transcribeAudio(audioBlob);
-          
-          if (!transcript) {
-            throw new Error('Failed to transcribe audio. Please try again.');
-          }
-
-          // Analyze session transcript
-          setProcessingStep('Analyzing session...');
-          const analysis = await analyzeSessionTranscript(transcript);
-          
-          if (!analysis) {
-            throw new Error('Failed to analyze transcript. Please try again.');
-          }
-
-          // Create recording data
-          const recordingData = {
-            id: uuidv4(),
-            url: audioUrl,
-            timestamp: new Date().toISOString(),
-            transcript,
-            analysis
-          };
-
-          // Save to storage
-          const saved = saveRecording(recordingData);
-          if (!saved) {
-            throw new Error('Failed to save recording. Please try again.');
-          }
-
-          setRecordings(prev => [...prev, recordingData]);
-
-        } catch (err) {
-          console.error('Processing error:', err);
-          setError(err.message || 'Failed to process recording. Please try again.');
-        } finally {
-          setIsProcessing(false);
-          setProcessingStep('');
-          chunksRef.current = [];
-        }
+      mediaRecorder.current.onstop = () => {
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
+        setAudioBlob(audioBlob);
       };
 
-      // Start recording with 1-second timeslices
-      mediaRecorderRef.current.start(1000);
+      mediaRecorder.current.start();
       setIsRecording(true);
+      setError(null);
     } catch (err) {
-      console.error('Error accessing microphone:', err);
-      setError('Error accessing microphone. Please ensure you have granted microphone permissions.');
+      setError('Error accessing microphone. Please ensure microphone permissions are granted.');
+      console.error('Error starting recording:', err);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    if (mediaRecorder.current && isRecording) {
+      mediaRecorder.current.stop();
+      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
     }
   };
 
-  return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Session Feedback Recording
-      </Typography>
+  const handleAnalysis = async () => {
+    if (!audioBlob) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const result = await analyzeFeedback(audioBlob);
+      setFeedback(result);
       
+      // Initialize detected players with names from analysis
+      const initialPlayers = result.analysis.players.map(player => ({
+        ...player,
+        confirmed: false,
+        matchedPlayer: null
+      }));
+      setDetectedPlayers(initialPlayers);
+      setShowConfirmation(true);
+    } catch (err) {
+      setError('Error analyzing feedback. Please try again.');
+      console.error('Error analyzing feedback:', err);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handlePlayerMatch = (detectedPlayer, matchedPlayer) => {
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === detectedPlayer.name
+          ? { ...p, confirmed: true, matchedPlayer }
+          : p
+      )
+    );
+  };
+
+  const handleSaveFeedback = () => {
+    try {
+      // Save feedback for each confirmed player
+      detectedPlayers.forEach(player => {
+        if (player.confirmed && player.matchedPlayer) {
+          const playerFeedback = {
+            ...feedback,
+            playerName: player.matchedPlayer.name,
+            analysis: {
+              ...feedback.analysis,
+              session_type: feedback.analysis.session_type,
+              skills_demonstrated: player.skills_demonstrated,
+              areas_for_improvement: player.areas_for_improvement,
+              key_takeaways: [
+                ...player.observations,
+                ...feedback.analysis.key_takeaways
+              ]
+            }
+          };
+          addFeedback(player.matchedPlayer.id, playerFeedback);
+        }
+      });
+
+      setShowConfirmation(false);
+      setAudioBlob(null);
+      setFeedback(null);
+      setDetectedPlayers([]);
+    } catch (err) {
+      setError('Error saving feedback. Please try again.');
+      console.error('Error saving feedback:', err);
+    }
+  };
+
+  const handleAddSkill = (player) => {
+    if (!editedSkill.trim()) return;
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, skills_demonstrated: [...p.skills_demonstrated, editedSkill.trim()] }
+          : p
+      )
+    );
+    setEditedSkill('');
+  };
+
+  const handleRemoveSkill = (player, skillToRemove) => {
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, skills_demonstrated: p.skills_demonstrated.filter(skill => skill !== skillToRemove) }
+          : p
+      )
+    );
+  };
+
+  const handleAddArea = (player) => {
+    if (!editedArea.trim()) return;
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, areas_for_improvement: [...p.areas_for_improvement, editedArea.trim()] }
+          : p
+      )
+    );
+    setEditedArea('');
+  };
+
+  const handleRemoveArea = (player, areaToRemove) => {
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, areas_for_improvement: p.areas_for_improvement.filter(area => area !== areaToRemove) }
+          : p
+      )
+    );
+  };
+
+  const handleAddObservation = (player) => {
+    if (!editedObservation.trim()) return;
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, observations: [...p.observations, editedObservation.trim()] }
+          : p
+      )
+    );
+    setEditedObservation('');
+  };
+
+  const handleRemoveObservation = (player, obsToRemove) => {
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, observations: p.observations.filter(obs => obs !== obsToRemove) }
+          : p
+      )
+    );
+  };
+
+  const canSaveFeedback = detectedPlayers.every(player => player.matchedPlayer);
+
+  return (
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Record Feedback
+      </Typography>
+
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ mb: 3 }}
-          action={
-            <Button 
-              color="inherit" 
-              size="small"
-              onClick={() => setError(null)}
-            >
-              Dismiss
-            </Button>
-          }
-        >
-          <AlertTitle>Error</AlertTitle>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
-      
+
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           {!isRecording ? (
             <Button
               variant="contained"
               color="primary"
-              startIcon={<MicIcon />}
+              startIcon={<Mic />}
               onClick={startRecording}
-              disabled={isProcessing}
+              disabled={processing}
               size="large"
             >
-              Start Session Recording
+              Start Recording
             </Button>
           ) : (
             <Button
               variant="contained"
-              color="secondary"
-              startIcon={<StopIcon />}
+              color="error"
+              startIcon={<Stop />}
               onClick={stopRecording}
               size="large"
             >
@@ -166,145 +263,202 @@ const RecordFeedback = () => {
             </Button>
           )}
         </Box>
-        
-        {isProcessing && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={20} />
-            <Typography>{processingStep || 'Processing recording...'}</Typography>
+
+        {audioBlob && !processing && !feedback && (
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Save />}
+              onClick={handleAnalysis}
+              size="large"
+            >
+              Analyze Feedback
+            </Button>
           </Box>
         )}
 
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-          {isRecording ? 
-            'Recording in progress... Click stop when finished.' :
-            'Click the button above to start recording your session feedback.'
-          }
-        </Typography>
+        {processing && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <CircularProgress sx={{ mb: 2 }} />
+            <Typography>Processing feedback...</Typography>
+          </Box>
+        )}
       </Paper>
 
-      <Typography variant="h6" gutterBottom>
-        Session Recordings
-      </Typography>
-      
-      <Box>
-        {recordings.map((recording, index) => (
-          <Paper key={index} sx={{ p: 3, mb: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Session Recording - {new Date(recording.timestamp).toLocaleString()}
+      <Dialog 
+        open={showConfirmation} 
+        onClose={() => setShowConfirmation(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Confirm Players & Feedback</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Session Information
             </Typography>
-            
-            <Box sx={{ mb: 3 }}>
-              <audio controls src={recording.url} style={{ width: '100%' }} />
-            </Box>
+            <Chip 
+              label={feedback?.analysis.session_type}
+              color="primary"
+              sx={{ mb: 2 }}
+            />
 
-            {recording.analysis.key_takeaways?.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  Key Takeaways
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {recording.analysis.key_takeaways.map((point, idx) => (
-                    <Chip
-                      key={idx}
-                      label={point}
-                      color="primary"
-                      sx={{ mb: 1 }}
-                    />
-                  ))}
-                </Box>
-              </Box>
-            )}
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>Session Details</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Session Type: {recording.analysis.session_type}
-                </Typography>
-                <Typography paragraph>{recording.analysis.session_summary}</Typography>
-              </AccordionDetails>
-            </Accordion>
-
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>Player Analysis</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                {recording.analysis.players.map((player) => (
-                  <Box key={player.name}>
-                    <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom>
+              Detected Players
+            </Typography>
+            <List>
+              {detectedPlayers.map((player, index) => (
+                <ListItem key={index} sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
                       {player.name}
                     </Typography>
-                    <List dense>
-                      {player.observations.map((obs, idx) => (
-                        <ListItem key={idx}>
-                          <ListItemText primary={obs} />
-                        </ListItem>
-                      ))}
-                    </List>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                      {player.skills.map((skill, idx) => (
+                    <IconButton 
+                      size="small" 
+                      onClick={() => setEditingPlayer(editingPlayer === player ? null : player)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Box>
+
+                  <Autocomplete
+                    options={existingPlayers}
+                    getOptionLabel={(option) => option.name}
+                    value={player.matchedPlayer}
+                    onChange={(_, newValue) => handlePlayerMatch(player, newValue)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Match to Existing Player"
+                        variant="outlined"
+                        size="small"
+                        sx={{ mb: 2 }}
+                      />
+                    )}
+                  />
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Skills Demonstrated:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                      {player.skills_demonstrated.map((skill, idx) => (
                         <Chip
                           key={idx}
                           label={skill}
-                          color="primary"
-                          variant="outlined"
                           size="small"
+                          variant="outlined"
+                          onDelete={() => handleRemoveSkill(player, skill)}
                         />
                       ))}
                     </Box>
-                    <Divider sx={{ my: 2 }} />
+                    {editingPlayer === player && (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          size="small"
+                          value={editedSkill}
+                          onChange={(e) => setEditedSkill(e.target.value)}
+                          placeholder="Add skill"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddSkill(player)}
+                        />
+                        <IconButton size="small" onClick={() => handleAddSkill(player)}>
+                          <AddIcon />
+                        </IconButton>
+                      </Box>
+                    )}
                   </Box>
-                ))}
-              </AccordionDetails>
-            </Accordion>
 
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>Team Analysis</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography variant="subtitle1" gutterBottom>
-                  Performance
-                </Typography>
-                <Typography paragraph>{recording.analysis.team_analysis.performance}</Typography>
-                
-                <Typography variant="subtitle1" gutterBottom>
-                  Chemistry
-                </Typography>
-                <Typography paragraph>{recording.analysis.team_analysis.chemistry}</Typography>
-                
-                <Typography variant="subtitle1" gutterBottom>
-                  Offense
-                </Typography>
-                <Typography paragraph>{recording.analysis.team_analysis.offense}</Typography>
-                
-                <Typography variant="subtitle1" gutterBottom>
-                  Defense
-                </Typography>
-                <Typography paragraph>{recording.analysis.team_analysis.defense}</Typography>
-              </AccordionDetails>
-            </Accordion>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Areas for Improvement:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                      {player.areas_for_improvement.map((area, idx) => (
+                        <Chip
+                          key={idx}
+                          label={area}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                          onDelete={() => handleRemoveArea(player, area)}
+                        />
+                      ))}
+                    </Box>
+                    {editingPlayer === player && (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          size="small"
+                          value={editedArea}
+                          onChange={(e) => setEditedArea(e.target.value)}
+                          placeholder="Add area for improvement"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddArea(player)}
+                        />
+                        <IconButton size="small" onClick={() => handleAddArea(player)}>
+                          <AddIcon />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Box>
 
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>Raw Transcript</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Typography
-                  variant="body2"
-                  sx={{ fontStyle: 'italic' }}
-                >
-                  {recording.transcript}
-                </Typography>
-              </AccordionDetails>
-            </Accordion>
-          </Paper>
-        ))}
-      </Box>
-    </Container>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Observations:
+                    </Typography>
+                    <List dense>
+                      {player.observations.map((obs, idx) => (
+                        <ListItem key={idx} disableGutters>
+                          <ListItemText primary={obs} />
+                          {editingPlayer === player && (
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                onClick={() => handleRemoveObservation(player, obs)}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          )}
+                        </ListItem>
+                      ))}
+                    </List>
+                    {editingPlayer === player && (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          value={editedObservation}
+                          onChange={(e) => setEditedObservation(e.target.value)}
+                          placeholder="Add observation"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddObservation(player)}
+                        />
+                        <IconButton size="small" onClick={() => handleAddObservation(player)}>
+                          <AddIcon />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {index < detectedPlayers.length - 1 && <Divider sx={{ my: 2 }} />}
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowConfirmation(false)}>Cancel</Button>
+          <Button 
+            onClick={handleSaveFeedback} 
+            variant="contained" 
+            color="primary"
+            disabled={!canSaveFeedback}
+          >
+            Save Feedback
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 
