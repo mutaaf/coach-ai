@@ -27,6 +27,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { analyzeFeedback } from '../services/aiService';
 import { getAllPlayers, addFeedback } from '../services/storageService';
@@ -46,6 +47,7 @@ const RecordFeedback = () => {
   const [editedSkill, setEditedSkill] = useState('');
   const [editedArea, setEditedArea] = useState('');
   const [editedObservation, setEditedObservation] = useState('');
+  const [playerPositions, setPlayerPositions] = useState({});
 
   // Load existing players for name suggestions
   useEffect(() => {
@@ -119,7 +121,29 @@ const RecordFeedback = () => {
     setDetectedPlayers(current =>
       current.map(p =>
         p.name === detectedPlayer.name
-          ? { ...p, confirmed: true, matchedPlayer }
+          ? { 
+              ...p, 
+              confirmed: true, 
+              matchedPlayer,
+              // If matching with existing player, use their position
+              position: matchedPlayer?.position || playerPositions[p.name] || ''
+            }
+          : p
+      )
+    );
+  };
+
+  const handlePositionChange = (player, position) => {
+    setPlayerPositions(prev => ({
+      ...prev,
+      [player.name]: position
+    }));
+    
+    // Update detected players list
+    setDetectedPlayers(current =>
+      current.map(p =>
+        p.name === player.name
+          ? { ...p, position }
           : p
       )
     );
@@ -127,31 +151,36 @@ const RecordFeedback = () => {
 
   const handleSaveFeedback = () => {
     try {
-      // Save feedback for each confirmed player
+      // Save feedback for each player (matched or new)
       detectedPlayers.forEach(player => {
-        if (player.confirmed && player.matchedPlayer) {
-          const playerFeedback = {
-            ...feedback,
-            playerName: player.matchedPlayer.name,
-            analysis: {
-              ...feedback.analysis,
-              session_type: feedback.analysis.session_type,
-              skills_demonstrated: player.skills_demonstrated,
-              areas_for_improvement: player.areas_for_improvement,
-              key_takeaways: [
-                ...player.observations,
-                ...feedback.analysis.key_takeaways
-              ]
-            }
-          };
-          addFeedback(player.matchedPlayer.id, playerFeedback);
-        }
+        const playerFeedback = {
+          ...feedback,
+          playerName: player.matchedPlayer?.name || player.name,
+          analysis: {
+            ...feedback.analysis,
+            session_type: feedback.analysis.session_type,
+            skills_demonstrated: player.skills_demonstrated,
+            areas_for_improvement: player.areas_for_improvement,
+            key_takeaways: [
+              ...player.observations,
+              ...feedback.analysis.key_takeaways
+            ]
+          }
+        };
+
+        // If player is matched, use their ID, otherwise create new player
+        const playerId = player.matchedPlayer?.id || null;
+        addFeedback(playerId, {
+          ...playerFeedback,
+          position: player.matchedPlayer?.position || playerPositions[player.name] || ''
+        });
       });
 
       setShowConfirmation(false);
       setAudioBlob(null);
       setFeedback(null);
       setDetectedPlayers([]);
+      setPlayerPositions({});
     } catch (err) {
       setError('Error saving feedback. Please try again.');
       console.error('Error saving feedback:', err);
@@ -224,7 +253,7 @@ const RecordFeedback = () => {
     );
   };
 
-  const canSaveFeedback = detectedPlayers.every(player => player.matchedPlayer);
+  const canSaveFeedback = detectedPlayers.length > 0;
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
@@ -322,21 +351,33 @@ const RecordFeedback = () => {
                     </IconButton>
                   </Box>
 
-                  <Autocomplete
-                    options={existingPlayers}
-                    getOptionLabel={(option) => option.name}
-                    value={player.matchedPlayer}
-                    onChange={(_, newValue) => handlePlayerMatch(player, newValue)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Match to Existing Player"
-                        variant="outlined"
-                        size="small"
-                        sx={{ mb: 2 }}
-                      />
-                    )}
-                  />
+                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    <Autocomplete
+                      options={existingPlayers}
+                      getOptionLabel={(option) => option.name}
+                      value={player.matchedPlayer}
+                      onChange={(_, newValue) => handlePlayerMatch(player, newValue)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Match to Existing Player (Optional)"
+                          variant="outlined"
+                          size="small"
+                        />
+                      )}
+                      sx={{ flexGrow: 1 }}
+                    />
+                    
+                    <TextField
+                      label="Position"
+                      variant="outlined"
+                      size="small"
+                      value={player.matchedPlayer?.position || playerPositions[player.name] || ''}
+                      onChange={(e) => handlePositionChange(player, e.target.value)}
+                      disabled={!!player.matchedPlayer}
+                      sx={{ width: '150px' }}
+                    />
+                  </Box>
 
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
