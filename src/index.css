@@ -1,0 +1,102 @@
+:root {
+  font-family: "Gotham SSm", -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  color: #171A20;
+  background-color: #FFFFFF;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #FFFFFF;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 40px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Tesla-inspired smooth transitions */
+* {
+  transition: all 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F4F4F4;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #171A20;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4F5964;
+}
+
+/* Tesla-inspired form elements */
+input, select, textarea {
+  font-family: inherit;
+  border: 1px solid #E5E5E5;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #171A20;
+}
+
+/* Tesla-inspired buttons */
+button {
+  background-color: #171A20;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: #4F5964;
+}
+
+/* Tesla-inspired cards */
+.card {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #E5E5E5;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
