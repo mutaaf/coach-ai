@@ -15,12 +15,15 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/" element={<Layout />}>
+            <Route path="/app" element={<Layout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<PlayerDashboard />} />
               <Route path="players" element={<Players />} />
               <Route path="record" element={<RecordFeedback />} />
-              <Route path="analytics" element={<Navigate to="/dashboard" replace />} />
+              <Route path="analytics" element={<Navigate to="dashboard" replace />} />
             </Route>
+            {/* Catch-all redirect */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </ThemeProvider>

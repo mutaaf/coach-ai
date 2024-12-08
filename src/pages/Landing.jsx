@@ -170,6 +170,10 @@ const Landing = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
 
+  const handleStart = () => {
+    navigate('/app/record');
+  };
+
   return (
     <Box sx={{ 
       minHeight: '100vh',
@@ -219,7 +223,7 @@ const Landing = () => {
           <Button 
             variant="contained" 
             size="large"
-            onClick={() => navigate('/record')}
+            onClick={handleStart}
             startIcon={<Mic />}
             sx={{
               background: 'linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)',
@@ -336,7 +340,7 @@ const Landing = () => {
           <Button 
             variant="contained"
             size="large"
-            onClick={() => navigate('/record')}
+            onClick={handleStart}
             sx={{
               background: 'linear-gradient(45deg, #FF6B6B 30%, #4ECDC4 90%)',
               backgroundSize: '200% 200%',

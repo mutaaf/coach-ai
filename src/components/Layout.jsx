@@ -23,10 +23,10 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 const DRAWER_WIDTH = 240;
 
 const MENU_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { path: '/players', label: 'Players', icon: <PeopleIcon /> },
-  { path: '/record', label: 'Record Session', icon: <MicIcon /> },
-  { path: '/analytics', label: 'Analytics', icon: <AssessmentIcon /> },
+  { path: '/app/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+  { path: '/app/players', label: 'Players', icon: <PeopleIcon /> },
+  { path: '/app/record', label: 'Record Session', icon: <MicIcon /> },
+  { path: '/app/analytics', label: 'Analytics', icon: <AssessmentIcon /> },
 ];
 
 const Layout = () => {
@@ -77,6 +77,7 @@ const Layout = () => {
             <ListItemIcon
               sx={{
                 color: location.pathname === item.path ? 'inherit' : 'text.primary',
+                minWidth: 40,
               }}
             >
               {item.icon}
@@ -89,12 +90,13 @@ const Layout = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { sm: `${DRAWER_WIDTH}px` },
+          bgcolor: 'background.dark',
         }}
       >
         <Toolbar>
@@ -128,7 +130,8 @@ const Layout = () => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
-              backgroundColor: theme.palette.background.dark,
+              bgcolor: 'background.dark',
+              borderRight: '1px solid rgba(255, 255, 255, 0.12)',
             },
           }}
         >
@@ -141,9 +144,8 @@ const Layout = () => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
+              bgcolor: 'background.dark',
               borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: 'none',
-              backgroundColor: theme.palette.background.dark,
             },
           }}
           open
@@ -159,7 +161,6 @@ const Layout = () => {
           p: 3,
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           minHeight: '100vh',
-          backgroundColor: 'background.default',
         }}
       >
         <Toolbar /> {/* Spacing for AppBar */}
