@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import RecordFeedback from './pages/RecordFeedback';
 import Players from './pages/Players';
 import PlayerDashboard from './pages/PlayerDashboard';
+import Analytics from './pages/Analytics';
 import Landing from './pages/Landing';
 import theme from './theme';
 
@@ -20,7 +21,7 @@ function App() {
               <Route path="dashboard" element={<PlayerDashboard />} />
               <Route path="players" element={<Players />} />
               <Route path="record" element={<RecordFeedback />} />
-              <Route path="analytics" element={<Navigate to="dashboard" replace />} />
+              <Route path="analytics" element={<Analytics />} />
             </Route>
             {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />
