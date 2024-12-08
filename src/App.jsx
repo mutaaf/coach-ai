@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { MantineProvider } from '@mantine/core';
 import Layout from './components/Layout';
@@ -15,10 +15,11 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route element={<Layout />}>
-              <Route path="/record" element={<RecordFeedback />} />
-              <Route path="/players" element={<Players />} />
-              <Route path="/dashboard" element={<PlayerDashboard />} />
+            <Route path="/" element={<Layout />}>
+              <Route path="dashboard" element={<PlayerDashboard />} />
+              <Route path="players" element={<Players />} />
+              <Route path="record" element={<RecordFeedback />} />
+              <Route path="analytics" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
         </Router>

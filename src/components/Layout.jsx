@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   Box,
   Drawer,
@@ -23,13 +23,13 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 const DRAWER_WIDTH = 240;
 
 const MENU_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+  { path: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { path: '/players', label: 'Players', icon: <PeopleIcon /> },
   { path: '/record', label: 'Record Session', icon: <MicIcon /> },
   { path: '/analytics', label: 'Analytics', icon: <AssessmentIcon /> },
 ];
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -50,7 +50,7 @@ const Layout = ({ children }) => {
   const drawer = (
     <Box>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div">
+        <Typography variant="h6" noWrap component="div" sx={{ color: 'white' }}>
           Scout Hub
         </Typography>
       </Toolbar>
@@ -128,6 +128,7 @@ const Layout = ({ children }) => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
+              backgroundColor: theme.palette.background.dark,
             },
           }}
         >
@@ -140,8 +141,9 @@ const Layout = ({ children }) => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
-              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+              borderRight: '1px solid rgba(255, 255, 255, 0.12)',
               boxShadow: 'none',
+              backgroundColor: theme.palette.background.dark,
             },
           }}
           open
@@ -161,7 +163,7 @@ const Layout = ({ children }) => {
         }}
       >
         <Toolbar /> {/* Spacing for AppBar */}
-        {children}
+        <Outlet />
       </Box>
     </Box>
   );
