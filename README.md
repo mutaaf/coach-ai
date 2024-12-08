@@ -1,41 +1,41 @@
-# 🏀 Scout Hub - Your Ultimate Basketball Practice Assistant 🎯
+# 🎯 Talent Scout - Your Ultimate Training Assistant
 
-Turn your courtside observations into game-changing insights! Scout Hub is like having an NBA-level analytics team in your pocket. No more fumbling with notepads or losing track of player progress - we've got your clipboard covered! 
+Turn your sideline observations into game-changing insights! Talent Scout is like having a professional analytics team in your pocket. No more fumbling with notepads or losing track of athlete progress - we've got your clipboard covered! 
 
 ## 🌟 Features That'll Make You Feel Like a Pro Coach
 
 ### 🎤 Voice-to-Insight Magic
-- **Courtside Recording** - Just hit record and speak your observations like you're calling the game
-- **AI Analysis** - Our AI assistant breaks down your feedback faster than a fast break
-- **Multi-Player Tracking** - Handle multiple players like a master of the full-court press
+- **Instant Recording** - Just hit record and speak your observations naturally
+- **AI Analysis** - Our AI assistant breaks down your feedback in real-time
+- **Multi-Athlete Tracking** - Handle multiple athletes with ease
 
-### 🏃‍♂️ Player Management
-- **Smart Player Matching** - Links feedback to players smoother than a no-look pass
-- **Progress Tracking** - Watch skills develop like rookies in training camp
-- **Detailed Statistics** - More stats than a basketball card collection
+### 🏃‍♂️ Athlete Management
+- **Smart Athlete Matching** - Links feedback to athletes automatically
+- **Progress Tracking** - Watch skills develop over time
+- **Detailed Statistics** - Comprehensive performance metrics
 
 ### 📊 Performance Analytics
-- **Skill Distribution** - See where your players shine brighter than championship rings
-- **Improvement Areas** - Spot weaknesses like gaps in zone defense
-- **Session Insights** - Track progress game by game, practice by practice
+- **Skill Distribution** - See where your athletes excel
+- **Improvement Areas** - Identify opportunities for growth
+- **Session Insights** - Track progress session by session
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18+) - As reliable as a veteran point guard
-- npm/yarn - Your trusty equipment manager
-- OpenAI API Key - Your secret playbook
+- Node.js (v18+)
+- npm/yarn
+- OpenAI API Key
 
 ### Installation
 
 ```bash
-# Clone the repo like stealing the ball
-git clone https://github.com/yourusername/basketball-scout-hub.git
+# Clone the repo
+git clone https://github.com/yourusername/talent-scout-hub.git
 
-# Install dependencies like running pre-game drills
+# Install dependencies
 npm install
 
-# Set up your environment variables like drawing up plays
+# Set up your environment variables
 cp .env.example .env
 # Add your OpenAI API key to .env
 ```
@@ -44,22 +44,22 @@ cp .env.example .env
 
 #### Development Mode 🏃‍♂️
 ```bash
-# Start the development server with hot reloading (like instant replay)
+# Start the development server with hot reloading
 npm run dev
 ```
 
-#### Production Mode 🏆
+#### Production Mode 🎯
 ```bash
-# Build for production (championship time!)
+# Build for production
 npm run build
 
-# Start the production server (game time!)
+# Start the production server
 npm run start
 ```
 
-#### Test Mode 🎯
+#### Test Mode 🔍
 ```bash
-# Run in test mode (like practice games)
+# Run in test mode
 npm run dev:test
 ```
 
@@ -67,13 +67,13 @@ npm run dev:test
 
 ### Recording Feedback
 1. 🎤 Hit the "Start Recording" button
-2. 🗣️ Speak naturally about what you're seeing
-3. 🎯 Mention player names and specific skills
+2. 🗣️ Speak naturally about what you're observing
+3. 🎯 Mention athlete names and specific skills
 4. 🛑 Stop recording when done
 5. ✨ Watch as AI transforms your words into structured feedback
 
 ### Best Practices
-- 🎯 Use player names clearly when recording
+- 🎯 Use athlete names clearly when recording
 - 📝 Review and edit AI-generated feedback
 - 🔄 Regular sessions build better insights
 - 📊 Check analytics to spot trends
@@ -83,23 +83,23 @@ npm run dev:test
 ### AI-Powered Analysis
 - OpenAI's GPT-4 for natural language processing
 - Real-time speech-to-text conversion
-- Smart player detection and skill categorization
+- Smart athlete detection and skill categorization
 
 ### Modern Tech Stack
-- ⚛️ React + Vite - Quick as a fast break
-- 🎨 Material-UI - Sleek as a well-designed play
-- 🧠 OpenAI Integration - Smart as a veteran coach
-- 📊 Dynamic Analytics - Precise as a free throw
+- ⚛️ React + Vite - Lightning fast performance
+- 🎨 Material-UI - Beautiful, responsive design
+- 🧠 OpenAI Integration - Intelligent analysis
+- 📊 Dynamic Analytics - Data-driven insights
 
 ## 🤝 Contributing
 
-Got some moves to add to our playbook? We're always looking for all-star contributors!
+We're always looking for talented contributors!
 
-1. Fork it (like studying game tape)
+1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m '🏀 Add some AmazingFeature'`)
+3. Commit your changes (`git commit -m '✨ Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request (submit your plays to the coach)
+5. Open a Pull Request
 
 ## 📝 License
 
@@ -107,12 +107,12 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 🙏 Acknowledgments
 
-- 🏀 Inspired by coaches who make players better
-- 💻 Built with love for the game
+- 🌟 Inspired by coaches who develop talent
+- 💻 Built with passion for sports and technology
 - 🌟 Special thanks to the open-source community
 
 ---
 
-Made with ❤️ by ballers who code 🏀✨
+Made with ❤️ by developers who love sports ✨
 
-*Remember: Great teams are built one practice at a time!* 🏆
+*Remember: Great athletes are built one practice at a time!* 🏆
