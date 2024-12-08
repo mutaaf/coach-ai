@@ -61,25 +61,66 @@ const RecordFeedback = () => {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder.current = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true,
+        video: false // explicitly disable video
+      });
+      
+      // Get supported MIME types
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : 'audio/wav';
+
+      mediaRecorder.current = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        audioBitsPerSecond: 128000
+      });
+      
       audioChunks.current = [];
 
       mediaRecorder.current.ondataavailable = (event) => {
-        audioChunks.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunks.current.push(event.data);
+        }
       };
 
       mediaRecorder.current.onstop = () => {
-        const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunks.current, { type: mimeType });
         setAudioBlob(audioBlob);
+        console.log('Recording stopped, blob created:', {
+          type: mimeType,
+          size: audioBlob.size
+        });
       };
 
-      mediaRecorder.current.start();
+      mediaRecorder.current.onerror = (event) => {
+        console.error('MediaRecorder error:', event.error);
+        setError(`Recording error: ${event.error.message || 'Unknown error'}`);
+      };
+
+      mediaRecorder.current.start(100); // collect data every 100ms
       setIsRecording(true);
       setError(null);
+      console.log('Recording started with mime type:', mimeType);
     } catch (err) {
-      setError('Error accessing microphone. Please ensure microphone permissions are granted.');
-      console.error('Error starting recording:', err);
+      console.error('Error starting recording:', {
+        name: err.name,
+        message: err.message,
+        constraint: err.constraint
+      });
+      let errorMessage = 'Error accessing microphone. ';
+      if (err.name === 'NotAllowedError') {
+        errorMessage += 'Please ensure microphone permissions are granted.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage += 'No microphone found on your device.';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage += 'Your microphone is busy or unavailable.';
+      } else {
+        errorMessage += err.message || 'Please check your device settings.';
+      }
+      setError(errorMessage);
     }
   };
 
@@ -92,13 +133,30 @@ const RecordFeedback = () => {
   };
 
   const handleAnalysis = async () => {
-    if (!audioBlob) return;
+    if (!audioBlob) {
+      setError('No audio recording found. Please record audio first.');
+      return;
+    }
+
+    if (audioBlob.size === 0) {
+      setError('Audio recording is empty. Please try recording again.');
+      return;
+    }
 
     setProcessing(true);
     setError(null);
 
     try {
+      console.log('Starting analysis with blob:', {
+        type: audioBlob.type,
+        size: audioBlob.size
+      });
       const result = await analyzeFeedback(audioBlob);
+      
+      if (!result) {
+        throw new Error('No analysis result received');
+      }
+      
       setFeedback(result);
       
       // Initialize detected players with names from analysis
@@ -110,8 +168,12 @@ const RecordFeedback = () => {
       setDetectedPlayers(initialPlayers);
       setShowConfirmation(true);
     } catch (err) {
-      setError('Error analyzing feedback. Please try again.');
-      console.error('Error analyzing feedback:', err);
+      console.error('Analysis error:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+      setError(`Error analyzing feedback: ${err.message || 'Please try again.'}`);
     } finally {
       setProcessing(false);
     }

@@ -85,12 +85,40 @@ export const analyzeFeedback = async (audioBlob) => {
       throw new Error('OpenAI API key not configured. Please check your .env file.');
     }
 
+    // Log the audio blob details
+    console.log('Processing audio:', {
+      type: audioBlob.type,
+      size: audioBlob.size
+    });
+
     // Step 1: Transcribe audio using Whisper API
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    
+    // Convert audio to mp3 if needed (Whisper API prefers mp3)
+    let processedBlob = audioBlob;
+    if (!audioBlob.type.includes('mp3')) {
+      try {
+        // Create a temporary audio element to check if the browser can play the audio
+        const audio = new Audio();
+        const canPlayType = audio.canPlayType(audioBlob.type);
+        
+        if (canPlayType === '') {
+          throw new Error(`Browser cannot play audio type: ${audioBlob.type}`);
+        }
+        
+        // Use the original blob if it's a supported format
+        console.log('Using original audio format:', audioBlob.type);
+      } catch (err) {
+        console.error('Audio format error:', err);
+        throw new Error(`Unsupported audio format: ${audioBlob.type}. Please try recording again.`);
+      }
+    }
+
+    formData.append('file', processedBlob, 'audio.mp3');
     formData.append('model', 'whisper-1');
     formData.append('response_format', 'text');
 
+    console.log('Sending transcription request...');
     const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
@@ -100,16 +128,24 @@ export const analyzeFeedback = async (audioBlob) => {
     });
 
     if (!transcriptionResponse.ok) {
-      throw new Error(`Transcription failed: ${transcriptionResponse.statusText}`);
+      const errorText = await transcriptionResponse.text();
+      console.error('Transcription API error:', {
+        status: transcriptionResponse.status,
+        statusText: transcriptionResponse.statusText,
+        error: errorText
+      });
+      throw new Error(`Transcription failed: ${transcriptionResponse.status} - ${errorText || transcriptionResponse.statusText}`);
     }
 
     const transcript = await transcriptionResponse.text();
+    console.log('Transcription received:', transcript.substring(0, 100) + '...');
 
     if (!transcript.trim()) {
-      throw new Error('No speech detected in the recording.');
+      throw new Error('No speech detected in the recording. Please speak clearly and try again.');
     }
 
     // Step 2: Analyze transcript using GPT-4 Turbo
+    console.log('Sending analysis request...');
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-1106-preview',
       messages: [
@@ -147,16 +183,31 @@ Return ONLY a JSON object with the following structure, no additional text:
     });
 
     if (!completion.choices?.[0]?.message?.content) {
-      throw new Error('Failed to analyze the feedback. Please try again.');
+      throw new Error('Failed to analyze the feedback. The AI model returned an empty response.');
     }
 
-    const analysis = JSON.parse(completion.choices[0].message.content);
+    let analysis;
+    try {
+      analysis = JSON.parse(completion.choices[0].message.content);
+      console.log('Analysis completed successfully');
+    } catch (err) {
+      console.error('JSON parsing error:', err);
+      throw new Error('Failed to parse the analysis result. Please try again.');
+    }
 
     return {
       transcript,
       analysis
     };
   } catch (error) {
+    // Log the full error details before handling
+    console.error('Full error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      status: error.status,
+      response: error.response
+    });
     handleAPIError(error);
   }
 }; 
