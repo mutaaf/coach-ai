@@ -17,15 +17,13 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route element={<Layout />}>
-              <Route path="/app">
-                <Route index element={<Dashboard />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="athletes" element={<Athletes />} />
-                <Route path="athlete/:id" element={<AthleteProfile />} />
-                <Route path="record" element={<RecordFeedback />} />
-                <Route path="analytics" element={<Analytics />} />
-              </Route>
+            <Route path="/app" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="athletes" element={<Athletes />} />
+              <Route path="athlete/:id" element={<AthleteProfile />} />
+              <Route path="record" element={<RecordFeedback />} />
+              <Route path="analytics" element={<Analytics />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
