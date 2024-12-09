@@ -1,10 +1,11 @@
-import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
+import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import MicIcon from '@mui/icons-material/Mic';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
-import Navbar from './Navbar';
+
+const DRAWER_WIDTH = 240;
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/app/dashboard' },
@@ -18,7 +19,6 @@ const Layout = () => {
   const location = useLocation();
 
   const isCurrentPath = (path) => {
-    // Handle both exact matches and sub-paths (for athlete/:id)
     return location.pathname === path || 
            (path === '/app/athletes' && location.pathname.startsWith('/app/athlete/'));
   };
@@ -29,18 +29,40 @@ const Layout = () => {
       <Drawer
         variant="permanent"
         sx={{
-          width: 240,
+          width: DRAWER_WIDTH,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: 240,
+            width: DRAWER_WIDTH,
             boxSizing: 'border-box',
             background: theme.palette.background.default,
             borderRight: `1px solid ${theme.palette.divider}`,
           },
         }}
       >
-        {/* Spacer for navbar */}
-        <Box sx={{ height: 64 }} />
+        {/* App Logo/Title */}
+        <Box
+          sx={{
+            p: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography
+            variant="h6"
+            component={RouterLink}
+            to="/app/dashboard"
+            sx={{
+              textDecoration: 'none',
+              color: theme.palette.text.primary,
+              fontWeight: 700,
+              letterSpacing: '-0.5px',
+            }}
+          >
+            Coach.AI
+          </Typography>
+        </Box>
         
         <List>
           {menuItems.map((item) => (
@@ -90,18 +112,15 @@ const Layout = () => {
       </Drawer>
 
       {/* Main content */}
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <Navbar />
-        <Box 
-          component="main" 
-          sx={{ 
-            flexGrow: 1, 
-            p: 3,
-            backgroundColor: theme.palette.background.default,
-          }}
-        >
-          <Outlet />
-        </Box>
+      <Box 
+        component="main" 
+        sx={{ 
+          flexGrow: 1,
+          p: 3,
+          backgroundColor: theme.palette.background.default,
+        }}
+      >
+        <Outlet />
       </Box>
     </Box>
   );
