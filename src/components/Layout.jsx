@@ -1,170 +1,107 @@
-import { useState } from 'react';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import {
-  Box,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  AppBar,
-  Toolbar,
-  Typography,
-  IconButton,
-  useTheme,
-  useMediaQuery,
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
+import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
+import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import MicIcon from '@mui/icons-material/Mic';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import Navbar from './Navbar';
 
-const DRAWER_WIDTH = 240;
-
-const MENU_ITEMS = [
-  { path: '/app/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { path: '/app/players', label: 'Players', icon: <PeopleIcon /> },
-  { path: '/app/record', label: 'Record Session', icon: <MicIcon /> },
-  { path: '/app/analytics', label: 'Analytics', icon: <AssessmentIcon /> },
+const menuItems = [
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/app/dashboard' },
+  { text: 'Athletes', icon: <PeopleIcon />, path: '/app/athletes' },
+  { text: 'Record', icon: <MicIcon />, path: '/app/record' },
+  { text: 'Analytics', icon: <AnalyticsIcon />, path: '/app/analytics' },
 ];
 
 const Layout = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+  const isCurrentPath = (path) => {
+    // Handle both exact matches and sub-paths (for athlete/:id)
+    return location.pathname === path || 
+           (path === '/app/athletes' && location.pathname.startsWith('/app/athlete/'));
   };
-
-  const handleNavigation = (path) => {
-    navigate(path);
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-  };
-
-  const drawer = (
-    <Box>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ color: 'white' }}>
-          Scout Hub
-        </Typography>
-      </Toolbar>
-      <List>
-        {MENU_ITEMS.map((item) => (
-          <ListItem
-            button
-            key={item.path}
-            onClick={() => handleNavigation(item.path)}
-            selected={location.pathname === item.path}
-            sx={{
-              '&.Mui-selected': {
-                backgroundColor: 'primary.main',
-                color: 'primary.contrastText',
-                '& .MuiListItemIcon-root': {
-                  color: 'primary.contrastText',
-                },
-                '&:hover': {
-                  backgroundColor: 'primary.dark',
-                },
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                color: location.pathname === item.path ? 'inherit' : 'text.primary',
-                minWidth: 40,
-              }}
-            >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar
-        position="fixed"
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Side Drawer */}
+      <Drawer
+        variant="permanent"
         sx={{
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { sm: `${DRAWER_WIDTH}px` },
-          bgcolor: 'background.dark',
+          width: 240,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: 240,
+            boxSizing: 'border-box',
+            background: theme.palette.background.default,
+            borderRight: `1px solid ${theme.palette.divider}`,
+          },
         }}
       >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            {MENU_ITEMS.find(item => item.path === location.pathname)?.label || 'Scout Hub'}
-          </Typography>
-        </Toolbar>
-      </AppBar>
+        {/* Spacer for navbar */}
+        <Box sx={{ height: 64 }} />
+        
+        <List>
+          {menuItems.map((item) => (
+            <ListItem
+              button
+              key={item.text}
+              component={RouterLink}
+              to={item.path}
+              selected={isCurrentPath(item.path)}
+              sx={{
+                my: 0.5,
+                mx: 1,
+                borderRadius: 2,
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(33, 150, 243, 0.08)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(33, 150, 243, 0.12)',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                },
+              }}
+            >
+              <ListItemIcon 
+                sx={{ 
+                  color: isCurrentPath(item.path)
+                    ? theme.palette.primary.main 
+                    : theme.palette.text.secondary,
+                  minWidth: 40 
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={item.text}
+                primaryTypographyProps={{
+                  fontWeight: isCurrentPath(item.path) ? 600 : 500,
+                  color: isCurrentPath(item.path)
+                    ? theme.palette.primary.main 
+                    : theme.palette.text.primary,
+                }}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Drawer>
 
-      <Box
-        component="nav"
-        sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better mobile performance
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: DRAWER_WIDTH,
-              bgcolor: 'background.dark',
-              borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-            },
+      {/* Main content */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <Navbar />
+        <Box 
+          component="main" 
+          sx={{ 
+            flexGrow: 1, 
+            p: 3,
+            backgroundColor: theme.palette.background.default,
           }}
         >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: DRAWER_WIDTH,
-              bgcolor: 'background.dark',
-              borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          minHeight: '100vh',
-        }}
-      >
-        <Toolbar /> {/* Spacing for AppBar */}
-        <Outlet />
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

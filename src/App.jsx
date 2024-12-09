@@ -4,6 +4,7 @@ import { MantineProvider } from '@mantine/core';
 import Layout from './components/Layout';
 import RecordFeedback from './pages/RecordFeedback';
 import Athletes from './pages/Athletes';
+import AthleteProfile from './pages/AthleteProfile';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Landing from './pages/Landing';
@@ -16,14 +17,16 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/app" element={<Layout />}>
-              <Route index element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="athletes" element={<Athletes />} />
-              <Route path="record" element={<RecordFeedback />} />
-              <Route path="analytics" element={<Analytics />} />
+            <Route element={<Layout />}>
+              <Route path="/app">
+                <Route index element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="athletes" element={<Athletes />} />
+                <Route path="athlete/:id" element={<AthleteProfile />} />
+                <Route path="record" element={<RecordFeedback />} />
+                <Route path="analytics" element={<Analytics />} />
+              </Route>
             </Route>
-            {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
