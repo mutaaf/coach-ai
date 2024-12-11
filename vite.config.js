@@ -9,19 +9,11 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     rollupOptions: {
-      external: [],
       output: {
         manualChunks: {
-          vendor: [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            '@mui/material',
-            '@mui/icons-material',
-            '@mantine/core',
-            '@mantine/hooks',
-            '@mantine/form'
-          ]
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-vendor': ['@mui/material', '@mui/icons-material'],
+          'mantine-vendor': ['@mantine/core', '@mantine/hooks', '@mantine/form']
         }
       }
     }
@@ -30,13 +22,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
-  optimizeDeps: {
-    include: [
-      '@mantine/core',
-      '@mantine/hooks',
-      '@mantine/form',
-      '@mui/material',
-      '@mui/icons-material'
-    ]
-  },
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  }
 })

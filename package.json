@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "CI=false NODE_ENV=production vite build",
+    "build": "CI=false vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "jest",
@@ -13,7 +13,7 @@
     "test:coverage": "jest --coverage",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
-    "prepare": "if [ -d '.git' ]; then husky install; fi"
+    "prepare": "exit 0"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",
