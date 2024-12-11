@@ -47,6 +47,18 @@ const RecordFeedback = () => {
     setChunks(prev => [...prev, chunk]);
   }, []);
 
+  const reset = () => {
+    setIsRecording(false);
+    setRecordingDuration(0);
+    setChunks([]);
+    setUploadProgress({});
+    setTranscriptionProgress(0);
+    setError(null);
+    setStatus('idle');
+    setFeedback(null);
+    setShowConfirmation(false);
+  };
+
   const startRecording = async () => {
     try {
       setError(null);
@@ -58,8 +70,7 @@ const RecordFeedback = () => {
     } catch (err) {
       console.error('Recording error:', err);
       setError('Failed to start recording: ' + err.message);
-      setStatus('idle');
-      setIsRecording(false);
+      reset();
     }
   };
 
@@ -69,17 +80,20 @@ const RecordFeedback = () => {
       setIsRecording(false);
       
       // Wait a short moment for any final chunks to be processed
-      setTimeout(async () => {
-        if (!chunks || chunks.length === 0) {
-          throw new Error('No audio was recorded. Please try again and speak into your microphone.');
-        }
-        setStatus('processing');
-        await processRecording();
-      }, 500);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      if (!chunks || chunks.length === 0) {
+        setError('No audio was recorded. Please try again and speak into your microphone.');
+        reset();
+        return;
+      }
+
+      setStatus('processing');
+      await processRecording();
     } catch (err) {
       console.error('Stop recording error:', err);
       setError(err.message);
-      setStatus('idle');
+      reset();
     }
   };
 
@@ -87,7 +101,7 @@ const RecordFeedback = () => {
     try {
       // Upload chunks
       setStatus('uploading');
-      const uploadResults = await uploadService.uploadChunksSequentially(
+      await uploadService.uploadChunksSequentially(
         chunks,
         (progress) => {
           setUploadProgress(prev => ({
@@ -117,7 +131,7 @@ const RecordFeedback = () => {
     } catch (err) {
       console.error('Processing error:', err);
       setError(err.message || 'Failed to process recording');
-      setStatus('idle');
+      reset();
     }
   };
 
@@ -156,18 +170,8 @@ const RecordFeedback = () => {
     } catch (err) {
       console.error('Save error:', err);
       setError(err.message || 'Failed to save feedback');
+      setStatus('idle');
     }
-  };
-
-  const reset = () => {
-    setIsRecording(false);
-    setRecordingDuration(0);
-    setChunks([]);
-    setUploadProgress({});
-    setTranscriptionProgress(0);
-    setError(null);
-    setStatus('idle');
-    setFeedback(null);
   };
 
   const formatDuration = (seconds) => {
@@ -247,7 +251,7 @@ const RecordFeedback = () => {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
