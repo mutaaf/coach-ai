@@ -49,14 +49,18 @@ The session_type MUST be one of: Training, Practice, Game, or Assessment.`;
 
 export const analyzeFeedback = async (audioChunks) => {
   try {
+    console.log('Starting analysis with chunks:', audioChunks);
     if (!audioChunks || audioChunks.length === 0) {
       throw new Error('No audio chunks provided for analysis');
     }
 
     // First, transcribe all chunks
     const transcriptions = [];
+    console.log('Transcribing chunks...');
     for (const chunk of audioChunks) {
+      console.log('Transcribing chunk:', chunk.id);
       const transcription = await transcriptionService.transcribeChunk(chunk);
+      console.log('Transcription result:', transcription);
       transcriptions.push(transcription);
     }
 
@@ -65,17 +69,21 @@ export const analyzeFeedback = async (audioChunks) => {
     }
 
     // Merge all transcriptions
+    console.log('Merging transcriptions...');
     const mergedTranscript = await transcriptionService.mergeTranscripts(transcriptions);
+    console.log('Merged transcript:', mergedTranscript);
 
     if (!mergedTranscript || !mergedTranscript.text) {
       throw new Error('Failed to merge transcriptions');
     }
 
     // Split transcript for analysis based on token limits
+    console.log('Splitting transcript for analysis...');
     const analysisChunks = transcriptionService.splitTranscriptForAnalysis(
       mergedTranscript,
       'gpt-4'
     );
+    console.log('Analysis chunks:', analysisChunks);
 
     if (analysisChunks.length === 0) {
       throw new Error('No analysis chunks generated');
@@ -84,8 +92,10 @@ export const analyzeFeedback = async (audioChunks) => {
     // Analyze each chunk
     const analysisResults = [];
     const client = getOpenAIClient();
+    console.log('Analyzing chunks with OpenAI...');
     
     for (const chunk of analysisChunks) {
+      console.log('Analyzing chunk:', chunk);
       const completion = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
@@ -103,6 +113,7 @@ export const analyzeFeedback = async (audioChunks) => {
 
       try {
         const analysis = JSON.parse(completion.choices[0].message.content);
+        console.log('Analysis result:', analysis);
         
         // Validate session type
         if (!analysis) {
@@ -142,6 +153,7 @@ export const analyzeFeedback = async (audioChunks) => {
     }
 
     // Merge analysis results with validation
+    console.log('Merging analysis results...');
     const mergedAnalysis = {
       session_type: analysisResults[0].session_type,
       session_summary: analysisResults[0].session_summary,
@@ -209,6 +221,7 @@ export const analyzeFeedback = async (audioChunks) => {
     mergedAnalysis.team_feedback.improvements = Array.from(mergedAnalysis.team_feedback.improvements);
     mergedAnalysis.team_feedback.suggested_team_drills = Array.from(mergedAnalysis.team_feedback.suggested_team_drills);
 
+    console.log('Final analysis result:', mergedAnalysis);
     return {
       transcript: mergedTranscript.text,
       analysis: mergedAnalysis,

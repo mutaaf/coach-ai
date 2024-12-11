@@ -23,32 +23,42 @@ export class TranscriptionService {
   }
 
   async transcribeChunk(audioChunk) {
-    if (this.transcriptionCache.has(audioChunk.id)) {
-      return this.transcriptionCache.get(audioChunk.id);
-    }
-
     try {
-      const client = getOpenAIClient();
-      const result = await client.audio.transcriptions.create({
-        file: audioChunk.blob,
-        model: 'whisper-1',
-        response_format: 'verbose_json',
-      });
-      
-      const transcription = {
-        text: result.text,
-        segments: result.segments,
-        words: result.words,
-        metadata: {
-          chunkId: audioChunk.id,
-          startTime: audioChunk.startTime,
-          endTime: audioChunk.endTime,
-          index: audioChunk.index,
-        },
-      };
+      console.log('Transcribing chunk:', audioChunk.id);
+      if (this.transcriptionCache.has(audioChunk.id)) {
+        console.log('Using cached transcription for chunk:', audioChunk.id);
+        return this.transcriptionCache.get(audioChunk.id);
+      }
 
-      this.transcriptionCache.set(audioChunk.id, transcription);
-      return transcription;
+      try {
+        const client = getOpenAIClient();
+        console.log('Sending chunk to OpenAI:', audioChunk.id);
+        const result = await client.audio.transcriptions.create({
+          file: audioChunk.blob,
+          model: 'whisper-1',
+          response_format: 'verbose_json',
+        });
+        
+        console.log('Transcription result:', result);
+        const transcription = {
+          text: result.text,
+          segments: result.segments,
+          words: result.words,
+          metadata: {
+            chunkId: audioChunk.id,
+            startTime: audioChunk.startTime,
+            endTime: audioChunk.endTime,
+            index: audioChunk.index,
+          },
+        };
+
+        this.transcriptionCache.set(audioChunk.id, transcription);
+        console.log('Cached transcription for chunk:', audioChunk.id);
+        return transcription;
+      } catch (error) {
+        console.error('OpenAI transcription error:', error);
+        throw error;
+      }
     } catch (error) {
       console.error('Transcription error:', error);
       throw error;

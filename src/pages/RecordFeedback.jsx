@@ -76,13 +76,16 @@ const RecordFeedback = () => {
 
   const stopRecording = async () => {
     try {
+      console.log('Stopping recording...');
       setStatus('processing');
       await audioService.stopRecording();
       setIsRecording(false);
       
       // Wait a short moment for any final chunks to be processed
+      console.log('Waiting for chunks to process...');
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
+      console.log('Current chunks:', chunks);
       if (!chunks || chunks.length === 0) {
         setError('No audio was recorded. Please try again and speak into your microphone.');
         reset();
@@ -92,10 +95,12 @@ const RecordFeedback = () => {
       // Upload and analyze the chunks
       try {
         // Upload chunks
+        console.log('Starting upload...');
         setStatus('uploading');
         await uploadService.uploadChunksSequentially(
           chunks,
           (progress) => {
+            console.log('Upload progress:', progress);
             setUploadProgress(prev => ({
               ...prev,
               [progress.chunkId]: progress.progress,
@@ -104,8 +109,10 @@ const RecordFeedback = () => {
         );
 
         // Analyze feedback
+        console.log('Starting analysis...');
         setStatus('analyzing');
         const result = await analyzeFeedback(chunks);
+        console.log('Analysis complete:', result);
         
         // Validate the analysis result
         if (!result || !result.analysis) {
