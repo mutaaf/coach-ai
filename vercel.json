@@ -1,6 +1,9 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "buildCommand": "npm run build",
+  "buildCommand": "VITE_OPENAI_API_KEY=$VITE_OPENAI_API_KEY npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "env": {
+    "VITE_OPENAI_API_KEY": "@vite_openai_api_key"
+  }
 } 
