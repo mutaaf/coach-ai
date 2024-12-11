@@ -52,6 +52,7 @@
     "msw": "^2.0.10",
     "postcss": "^8.4.32",
     "postcss-preset-mantine": "^1.11.1",
+    "postcss-simple-vars": "^7.0.1",
     "vite": "^5.0.0"
   }
 }
