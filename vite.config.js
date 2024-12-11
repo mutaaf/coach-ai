@@ -11,15 +11,32 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        manualChunks: undefined,
-      },
-    },
+        manualChunks: {
+          vendor: [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            '@mui/material',
+            '@mui/icons-material',
+            '@mantine/core',
+            '@mantine/hooks',
+            '@mantine/form'
+          ]
+        }
+      }
+    }
   },
   server: {
     port: 5173,
     strictPort: true,
   },
   optimizeDeps: {
-    include: ['@mantine/core', '@mantine/hooks', '@mantine/form'],
+    include: [
+      '@mantine/core',
+      '@mantine/hooks',
+      '@mantine/form',
+      '@mui/material',
+      '@mui/icons-material'
+    ]
   },
 })
