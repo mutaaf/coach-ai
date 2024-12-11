@@ -1,11 +1,10 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 import transcriptionService from './transcriptionService';
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
 });
-
-const openai = new OpenAIApi(configuration);
 
 const ANALYSIS_PROMPT = `You are a basketball analysis expert. Analyze the following session feedback and extract information about all players mentioned. 
 Return ONLY a JSON object with the following structure, no additional text:
@@ -65,7 +64,7 @@ export const analyzeFeedback = async (audioChunks) => {
     // Analyze each chunk
     const analysisResults = [];
     for (const chunk of analysisChunks) {
-      const completion = await openai.createChatCompletion({
+      const completion = await openai.chat.completions.create({
         model: 'gpt-4',
         messages: [
           { role: 'system', content: ANALYSIS_PROMPT },
@@ -73,9 +72,10 @@ export const analyzeFeedback = async (audioChunks) => {
         ],
         temperature: 0.7,
         max_tokens: 2000,
+        response_format: { type: "json_object" }
       });
 
-      const analysis = JSON.parse(completion.data.choices[0].message.content);
+      const analysis = JSON.parse(completion.choices[0].message.content);
       analysisResults.push({
         ...analysis,
         startTime: chunk.startTime,
@@ -161,7 +161,7 @@ export const analyzeFeedback = async (audioChunks) => {
 
 export const generateSummary = async (feedback) => {
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
         {
@@ -177,7 +177,7 @@ export const generateSummary = async (feedback) => {
       max_tokens: 500,
     });
 
-    return completion.data.choices[0].message.content;
+    return completion.choices[0].message.content;
   } catch (error) {
     console.error('Error generating summary:', error);
     throw error;

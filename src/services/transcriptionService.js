@@ -1,10 +1,9 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
 });
-
-const openai = new OpenAIApi(configuration);
 
 export class TranscriptionService {
   constructor() {
@@ -27,19 +26,11 @@ export class TranscriptionService {
       formData.append('response_format', 'json');
       formData.append('timestamp_granularities', ['segment', 'word']);
 
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.VITE_OPENAI_API_KEY}`,
-        },
-        body: formData,
+      const result = await openai.audio.transcriptions.create({
+        file: audioChunk.blob,
+        model: 'whisper-1',
+        response_format: 'verbose_json',
       });
-
-      if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
       
       const transcription = {
         text: result.text,
