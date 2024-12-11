@@ -9,10 +9,10 @@ const getOpenAIClient = () => {
   });
 };
 
-const ANALYSIS_PROMPT = `You are a basketball analysis expert. Analyze the following session feedback and extract information about all players mentioned. 
+const ANALYSIS_PROMPT = `You are a sports analysis expert. Analyze the following session feedback and extract information about all players mentioned. 
 Return ONLY a JSON object with the following structure, no additional text:
 {
-  "session_type": "string (Practice/Game/Training)",
+  "session_type": "string (must be one of: Training/Practice/Game/Assessment)",
   "session_summary": "string",
   "players": [
     {
@@ -44,10 +44,15 @@ For team feedback:
 3. Assess team chemistry
 4. Suggest team drills that address the areas for improvement
 
-Ensure all drill recommendations are specific and actionable.`;
+Ensure all drill recommendations are specific and actionable.
+The session_type MUST be one of: Training, Practice, Game, or Assessment.`;
 
 export const analyzeFeedback = async (audioChunks) => {
   try {
+    if (!audioChunks || audioChunks.length === 0) {
+      throw new Error('No audio chunks provided for analysis');
+    }
+
     // First, transcribe all chunks
     const transcriptions = [];
     for (const chunk of audioChunks) {
@@ -55,8 +60,16 @@ export const analyzeFeedback = async (audioChunks) => {
       transcriptions.push(transcription);
     }
 
+    if (transcriptions.length === 0) {
+      throw new Error('No transcriptions generated from audio');
+    }
+
     // Merge all transcriptions
     const mergedTranscript = await transcriptionService.mergeTranscripts(transcriptions);
+
+    if (!mergedTranscript || !mergedTranscript.text) {
+      throw new Error('Failed to merge transcriptions');
+    }
 
     // Split transcript for analysis based on token limits
     const analysisChunks = transcriptionService.splitTranscriptForAnalysis(
@@ -64,9 +77,14 @@ export const analyzeFeedback = async (audioChunks) => {
       'gpt-4'
     );
 
+    if (analysisChunks.length === 0) {
+      throw new Error('No analysis chunks generated');
+    }
+
     // Analyze each chunk
     const analysisResults = [];
     const client = getOpenAIClient();
+    
     for (const chunk of analysisChunks) {
       const completion = await client.chat.completions.create({
         model: 'gpt-4',
@@ -79,15 +97,51 @@ export const analyzeFeedback = async (audioChunks) => {
         response_format: { type: "json_object" }
       });
 
-      const analysis = JSON.parse(completion.choices[0].message.content);
-      analysisResults.push({
-        ...analysis,
-        startTime: chunk.startTime,
-        endTime: chunk.endTime,
-      });
+      if (!completion.choices?.[0]?.message?.content) {
+        throw new Error('No analysis content received from OpenAI');
+      }
+
+      try {
+        const analysis = JSON.parse(completion.choices[0].message.content);
+        
+        // Validate session type
+        if (!analysis) {
+          throw new Error('Invalid analysis format received');
+        }
+
+        // Ensure valid session type
+        const validSessionTypes = ['Training', 'Practice', 'Game', 'Assessment'];
+        analysis.session_type = analysis.session_type && validSessionTypes.includes(analysis.session_type)
+          ? analysis.session_type
+          : 'Training';
+
+        // Ensure other required fields
+        analysis.session_summary = analysis.session_summary || 'Session summary not provided';
+        analysis.players = analysis.players || [];
+        analysis.team_feedback = analysis.team_feedback || {
+          strengths: [],
+          improvements: [],
+          chemistry: 'Not specified',
+          suggested_team_drills: []
+        };
+        analysis.key_takeaways = analysis.key_takeaways || [];
+
+        analysisResults.push({
+          ...analysis,
+          startTime: chunk.startTime,
+          endTime: chunk.endTime,
+        });
+      } catch (parseError) {
+        console.error('Failed to parse analysis:', parseError);
+        throw new Error('Failed to parse analysis response');
+      }
     }
 
-    // Merge analysis results
+    if (analysisResults.length === 0) {
+      throw new Error('No valid analysis results generated');
+    }
+
+    // Merge analysis results with validation
     const mergedAnalysis = {
       session_type: analysisResults[0].session_type,
       session_summary: analysisResults[0].session_summary,
@@ -95,56 +149,58 @@ export const analyzeFeedback = async (audioChunks) => {
       team_feedback: {
         strengths: new Set(),
         improvements: new Set(),
-        chemistry: analysisResults[0].team_feedback.chemistry,
+        chemistry: analysisResults[0].team_feedback?.chemistry || 'Not specified',
         suggested_team_drills: new Set()
       },
       key_takeaways: [],
     };
 
-    // Combine results from all chunks
+    // Combine results from all chunks with validation
     analysisResults.forEach(result => {
-      // Merge players
+      // Merge players with validation
       result.players?.forEach(player => {
+        if (!player || !player.name) return;
+        
         const existingPlayer = mergedAnalysis.players.find(p => p.name === player.name);
         if (existingPlayer) {
           existingPlayer.skills_demonstrated = [
             ...new Set([...existingPlayer.skills_demonstrated, ...(player.skills_demonstrated || [])])
-          ];
+          ].filter(Boolean);
           existingPlayer.areas_for_improvement = [
             ...new Set([...existingPlayer.areas_for_improvement, ...(player.areas_for_improvement || [])])
-          ];
+          ].filter(Boolean);
           existingPlayer.observations = [
             ...existingPlayer.observations,
             ...(player.observations || [])
-          ];
+          ].filter(Boolean);
           existingPlayer.suggested_drills = [
             ...new Set([...existingPlayer.suggested_drills, ...(player.suggested_drills || [])])
-          ];
+          ].filter(Boolean);
         } else {
           mergedAnalysis.players.push({
-            ...player,
-            skills_demonstrated: player.skills_demonstrated || [],
-            areas_for_improvement: player.areas_for_improvement || [],
-            observations: player.observations || [],
-            suggested_drills: player.suggested_drills || []
+            name: player.name,
+            skills_demonstrated: (player.skills_demonstrated || []).filter(Boolean),
+            areas_for_improvement: (player.areas_for_improvement || []).filter(Boolean),
+            observations: (player.observations || []).filter(Boolean),
+            suggested_drills: (player.suggested_drills || []).filter(Boolean)
           });
         }
       });
 
-      // Merge team feedback
+      // Merge team feedback with validation
       result.team_feedback?.strengths?.forEach(strength => 
-        mergedAnalysis.team_feedback.strengths.add(strength)
+        strength && mergedAnalysis.team_feedback.strengths.add(strength)
       );
       result.team_feedback?.improvements?.forEach(improvement => 
-        mergedAnalysis.team_feedback.improvements.add(improvement)
+        improvement && mergedAnalysis.team_feedback.improvements.add(improvement)
       );
       result.team_feedback?.suggested_team_drills?.forEach(drill => 
-        mergedAnalysis.team_feedback.suggested_team_drills.add(drill)
+        drill && mergedAnalysis.team_feedback.suggested_team_drills.add(drill)
       );
 
-      // Merge key takeaways
-      if (result.key_takeaways) {
-        mergedAnalysis.key_takeaways.push(...result.key_takeaways);
+      // Merge key takeaways with validation
+      if (result.key_takeaways?.length > 0) {
+        mergedAnalysis.key_takeaways.push(...result.key_takeaways.filter(Boolean));
       }
     });
 
@@ -159,12 +215,16 @@ export const analyzeFeedback = async (audioChunks) => {
     };
   } catch (error) {
     console.error('Error in analyzeFeedback:', error);
-    throw error;
+    throw new Error(`Failed to process recording: ${error.message}`);
   }
 };
 
 export const generateSummary = async (feedback) => {
   try {
+    if (!feedback) {
+      throw new Error('No feedback provided for summary');
+    }
+
     const client = getOpenAIClient();
     const completion = await client.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -182,9 +242,13 @@ export const generateSummary = async (feedback) => {
       max_tokens: 500,
     });
 
+    if (!completion.choices?.[0]?.message?.content) {
+      throw new Error('No summary content received');
+    }
+
     return completion.choices[0].message.content;
   } catch (error) {
     console.error('Error generating summary:', error);
-    throw error;
+    throw new Error(`Failed to generate summary: ${error.message}`);
   }
 }; 

@@ -76,6 +76,10 @@ const RecordFeedback = () => {
 
   const processRecording = async () => {
     try {
+      if (!chunks || chunks.length === 0) {
+        throw new Error('No audio recorded. Please record some feedback first.');
+      }
+
       // Upload chunks
       setStatus('uploading');
       const uploadResults = await uploadService.uploadChunksSequentially(
@@ -91,30 +95,51 @@ const RecordFeedback = () => {
       // Analyze feedback
       setStatus('analyzing');
       const result = await analyzeFeedback(chunks);
+      
+      // Validate the analysis result
+      if (!result || !result.analysis) {
+        throw new Error('Invalid analysis result received');
+      }
+
+      // Set default session type if not provided
+      if (!result.analysis.session_type) {
+        result.analysis.session_type = 'Training';
+      }
+
       setFeedback(result);
       setShowConfirmation(true);
       setStatus('completed');
     } catch (err) {
-      setError('Failed to process recording: ' + err.message);
+      console.error('Processing error:', err);
+      setError(err.message || 'Failed to process recording');
       setStatus('idle');
     }
   };
 
   const handleSaveFeedback = async () => {
     try {
+      if (!feedback || !feedback.analysis || !feedback.analysis.players) {
+        throw new Error('Invalid feedback data');
+      }
+
       setStatus('saving');
       
       // Generate a summary for each player
       for (const player of feedback.analysis.players) {
+        if (!player || !player.name) {
+          console.warn('Skipping invalid player data');
+          continue;
+        }
+
         const playerFeedback = {
           ...feedback,
           playerName: player.name,
           analysis: {
             ...feedback.analysis,
-            session_type: feedback.analysis.session_type,
-            skills_demonstrated: player.skills_demonstrated,
-            areas_for_improvement: player.areas_for_improvement,
-            observations: player.observations,
+            session_type: feedback.analysis.session_type || 'Training',
+            skills_demonstrated: player.skills_demonstrated || [],
+            areas_for_improvement: player.areas_for_improvement || [],
+            observations: player.observations || [],
           }
         };
 
@@ -124,7 +149,8 @@ const RecordFeedback = () => {
       setShowConfirmation(false);
       reset();
     } catch (err) {
-      setError('Failed to save feedback: ' + err.message);
+      console.error('Save error:', err);
+      setError(err.message || 'Failed to save feedback');
     }
   };
 
