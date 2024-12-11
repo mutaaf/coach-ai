@@ -56,6 +56,7 @@ const RecordFeedback = () => {
       setChunks([]);
       await audioService.startRecording(handleChunkReady);
     } catch (err) {
+      console.error('Recording error:', err);
       setError('Failed to start recording: ' + err.message);
       setStatus('idle');
       setIsRecording(false);
@@ -66,20 +67,24 @@ const RecordFeedback = () => {
     try {
       await audioService.stopRecording();
       setIsRecording(false);
-      setStatus('processing');
-      await processRecording();
+      
+      // Wait a short moment for any final chunks to be processed
+      setTimeout(async () => {
+        if (!chunks || chunks.length === 0) {
+          throw new Error('No audio was recorded. Please try again and speak into your microphone.');
+        }
+        setStatus('processing');
+        await processRecording();
+      }, 500);
     } catch (err) {
-      setError('Failed to stop recording: ' + err.message);
+      console.error('Stop recording error:', err);
+      setError(err.message);
       setStatus('idle');
     }
   };
 
   const processRecording = async () => {
     try {
-      if (!chunks || chunks.length === 0) {
-        throw new Error('No audio recorded. Please record some feedback first.');
-      }
-
       // Upload chunks
       setStatus('uploading');
       const uploadResults = await uploadService.uploadChunksSequentially(
