@@ -26,6 +26,9 @@ export class AudioRecordingService {
     this.currentChunkStartTime = 0;
     this.chunkIndex = 0;
     this.worker = null;
+    this.currentChunk = [];
+    this.chunkStartTime = Date.now();
+    this.onChunkReady = null;
     this.initializeWorker();
   }
 
@@ -54,40 +57,22 @@ export class AudioRecordingService {
 
   async startRecording(onChunkReady) {
     try {
+      this.onChunkReady = onChunkReady;
+      this.currentChunk = [];
+      this.chunkStartTime = Date.now();
+      this.chunkIndex = 0;
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.mediaRecorder = new MediaRecorder(stream, AUDIO_CONFIG);
       
-      let currentChunk = [];
-      let chunkStartTime = Date.now();
-
       this.mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0) {
-          currentChunk.push(event.data);
+          this.currentChunk.push(event.data);
           
           // Check if current chunk duration exceeds limit
-          const currentDuration = Date.now() - chunkStartTime;
+          const currentDuration = Date.now() - this.chunkStartTime;
           if (currentDuration >= CHUNK_DURATION_MS) {
-            const blob = new Blob(currentChunk, { type: AUDIO_CONFIG.mimeType });
-            const audioChunk = new AudioChunk(
-              blob,
-              chunkStartTime,
-              Date.now(),
-              this.chunkIndex++
-            );
-
-            // Process chunk in web worker
-            this.worker.postMessage({
-              chunk: audioChunk,
-              config: AUDIO_CONFIG
-            });
-
-            // Reset for next chunk
-            currentChunk = [];
-            chunkStartTime = Date.now();
-            
-            if (onChunkReady) {
-              onChunkReady(audioChunk);
-            }
+            await this.processCurrentChunk();
           }
         }
       };
@@ -100,12 +85,46 @@ export class AudioRecordingService {
     }
   }
 
+  async processCurrentChunk() {
+    if (this.currentChunk.length === 0) return;
+
+    const blob = new Blob(this.currentChunk, { type: AUDIO_CONFIG.mimeType });
+    const audioChunk = new AudioChunk(
+      blob,
+      this.chunkStartTime,
+      Date.now(),
+      this.chunkIndex++
+    );
+
+    // Process chunk in web worker
+    this.worker.postMessage({
+      chunk: audioChunk,
+      config: AUDIO_CONFIG
+    });
+
+    // Reset for next chunk
+    this.currentChunk = [];
+    this.chunkStartTime = Date.now();
+    
+    if (this.onChunkReady) {
+      this.onChunkReady(audioChunk);
+    }
+  }
+
   async stopRecording() {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       return new Promise((resolve) => {
-        this.mediaRecorder.onstop = () => {
+        this.mediaRecorder.onstop = async () => {
+          // Process the final chunk
+          await this.processCurrentChunk();
+          
           const tracks = this.mediaRecorder.stream.getTracks();
           tracks.forEach(track => track.stop());
+          
+          // Clean up
+          this.currentChunk = [];
+          this.onChunkReady = null;
+          
           resolve();
         };
         this.mediaRecorder.stop();
@@ -137,6 +156,8 @@ export class AudioRecordingService {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }
+    this.currentChunk = [];
+    this.onChunkReady = null;
   }
 }
 

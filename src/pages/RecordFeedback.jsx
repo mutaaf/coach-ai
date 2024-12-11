@@ -76,11 +76,12 @@ const RecordFeedback = () => {
 
   const stopRecording = async () => {
     try {
+      setStatus('processing');
       await audioService.stopRecording();
       setIsRecording(false);
       
       // Wait a short moment for any final chunks to be processed
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       
       if (!chunks || chunks.length === 0) {
         setError('No audio was recorded. Please try again and speak into your microphone.');
@@ -88,8 +89,42 @@ const RecordFeedback = () => {
         return;
       }
 
-      setStatus('processing');
-      await processRecording();
+      // Upload and analyze the chunks
+      try {
+        // Upload chunks
+        setStatus('uploading');
+        await uploadService.uploadChunksSequentially(
+          chunks,
+          (progress) => {
+            setUploadProgress(prev => ({
+              ...prev,
+              [progress.chunkId]: progress.progress,
+            }));
+          }
+        );
+
+        // Analyze feedback
+        setStatus('analyzing');
+        const result = await analyzeFeedback(chunks);
+        
+        // Validate the analysis result
+        if (!result || !result.analysis) {
+          throw new Error('Invalid analysis result received');
+        }
+
+        // Set default session type if not provided
+        if (!result.analysis.session_type) {
+          result.analysis.session_type = 'Training';
+        }
+
+        setFeedback(result);
+        setShowConfirmation(true);
+        setStatus('completed');
+      } catch (analysisError) {
+        console.error('Analysis error:', analysisError);
+        setError(analysisError.message || 'Failed to analyze recording');
+        reset();
+      }
     } catch (err) {
       console.error('Stop recording error:', err);
       setError(err.message);
