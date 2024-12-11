@@ -1,6 +1,10 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "buildCommand": "CI=false npm run build",
+  "buildCommand": "CI=false NODE_ENV=production npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "env": {
+    "NODE_ENV": "production",
+    "CI": "false"
+  }
 } 
