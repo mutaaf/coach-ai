@@ -5,6 +5,14 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
+// Create a function to get a new OpenAI instance with the current API key
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    dangerouslyAllowBrowser: true
+  });
+};
+
 export class TranscriptionService {
   constructor() {
     this.transcriptionCache = new Map();
@@ -20,13 +28,8 @@ export class TranscriptionService {
     }
 
     try {
-      const formData = new FormData();
-      formData.append('file', audioChunk.blob);
-      formData.append('model', 'whisper-1');
-      formData.append('response_format', 'json');
-      formData.append('timestamp_granularities', ['segment', 'word']);
-
-      const result = await openai.audio.transcriptions.create({
+      const client = getOpenAIClient();
+      const result = await client.audio.transcriptions.create({
         file: audioChunk.blob,
         model: 'whisper-1',
         response_format: 'verbose_json',

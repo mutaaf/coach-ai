@@ -1,10 +1,13 @@
 import OpenAI from 'openai';
 import transcriptionService from './transcriptionService';
 
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-});
+// Create a function to get a new OpenAI instance with the current API key
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+    dangerouslyAllowBrowser: true
+  });
+};
 
 const ANALYSIS_PROMPT = `You are a basketball analysis expert. Analyze the following session feedback and extract information about all players mentioned. 
 Return ONLY a JSON object with the following structure, no additional text:
@@ -63,8 +66,9 @@ export const analyzeFeedback = async (audioChunks) => {
 
     // Analyze each chunk
     const analysisResults = [];
+    const client = getOpenAIClient();
     for (const chunk of analysisChunks) {
-      const completion = await openai.chat.completions.create({
+      const completion = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
           { role: 'system', content: ANALYSIS_PROMPT },
@@ -161,7 +165,8 @@ export const analyzeFeedback = async (audioChunks) => {
 
 export const generateSummary = async (feedback) => {
   try {
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const completion = await client.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
         {
