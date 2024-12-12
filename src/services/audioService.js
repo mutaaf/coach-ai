@@ -22,37 +22,10 @@ class AudioChunk {
 export class AudioRecordingService {
   constructor() {
     this.mediaRecorder = null;
-    this.chunks = [];
-    this.currentChunkStartTime = 0;
-    this.chunkIndex = 0;
-    this.worker = null;
     this.currentChunk = [];
     this.chunkStartTime = Date.now();
+    this.chunkIndex = 0;
     this.onChunkReady = null;
-    this.initializeWorker();
-  }
-
-  initializeWorker() {
-    const workerCode = `
-      self.onmessage = async (e) => {
-        const { chunk, config } = e.data;
-        try {
-          // Process audio chunk in background
-          const processedChunk = await self.processAudioChunk(chunk, config);
-          self.postMessage({ type: 'success', chunk: processedChunk });
-        } catch (error) {
-          self.postMessage({ type: 'error', error: error.message });
-        }
-      };
-
-      self.processAudioChunk = async (chunk, config) => {
-        // Implement audio processing logic here
-        return chunk;
-      };
-    `;
-
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    this.worker = new Worker(URL.createObjectURL(blob));
   }
 
   async startRecording(onChunkReady) {
@@ -96,12 +69,6 @@ export class AudioRecordingService {
       this.chunkIndex++
     );
 
-    // Process chunk in web worker
-    this.worker.postMessage({
-      chunk: audioChunk,
-      config: AUDIO_CONFIG
-    });
-
     // Reset for next chunk
     this.currentChunk = [];
     this.chunkStartTime = Date.now();
@@ -132,27 +99,7 @@ export class AudioRecordingService {
     }
   }
 
-  async compressAudioChunk(chunk) {
-    return new Promise((resolve, reject) => {
-      this.worker.onmessage = (e) => {
-        if (e.data.type === 'success') {
-          resolve(e.data.chunk);
-        } else {
-          reject(new Error(e.data.error));
-        }
-      };
-
-      this.worker.postMessage({
-        chunk,
-        config: AUDIO_CONFIG
-      });
-    });
-  }
-
   destroy() {
-    if (this.worker) {
-      this.worker.terminate();
-    }
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
     }
